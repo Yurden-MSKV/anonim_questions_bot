@@ -24,13 +24,15 @@ async def cmd_start(message: Message, state: FSMContext):
         }
     )
     if created:
-        await message.answer(
-            f"Привет, {message.from_user.first_name}! 👋\n"
-        )
-    else:
+        print("Новый пользователь")
         await message.answer(
             f"Привет, {message.from_user.first_name}! 👋\n"
             "Это бот-агрегатор для анонимных сообщений. Заведи несколько источников в одном месте, чтобы не путать, откуда тебе пишут читатели."
+        )
+    else:
+        print("Пользователь есть в базе")
+        await message.answer(
+            f"Привет, {message.from_user.first_name}! 👋\n"
         )
 
     await state.set_state(ActionForm.action_choose)
