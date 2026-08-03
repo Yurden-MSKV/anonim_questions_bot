@@ -31,6 +31,7 @@ class Source(Model):
 
 class AnonimMessage(Model):
     id = fields.BigIntField(pk=True)
+    user = fields.ForeignKeyField('models.User', related_name='all_messages', on_delete=fields.CASCADE)
     source = fields.ForeignKeyField('models.Source',
                                     related_name='messages',
                                     on_delete=fields.CASCADE)

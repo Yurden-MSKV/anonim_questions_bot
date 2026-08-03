@@ -1,3 +1,4 @@
+import zoneinfo
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -7,27 +8,29 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 
 from keyboards.actions import get_actions_keyboard, ActionCallback
-from models import User, Source
+from models import User, Source, AnonimMessage
 from states.action_state import ActionForm, AddSource, SendAnonymousMessage
 
 router = Router()
 
 
+def now_msk():
+    return datetime.now(zoneinfo.ZoneInfo('Europe/Moscow'))
+
+
 @router.message(CommandStart())
 async def cmd_start(message: Message, command: CommandObject, state: FSMContext):
     tg_user = message.from_user
-    now_msk = datetime.now(ZoneInfo("Europe/Moscow"))
     user, created = await User.get_or_create(
         telegram_id=tg_user.id,
         defaults={
-            "created_at": now_msk
+            "created_at": now_msk(),
         }
     )
 
     link_word = command.args
 
     if not link_word:
-
         if created:
             print("Новый пользователь")
             await message.answer(
@@ -41,30 +44,45 @@ async def cmd_start(message: Message, command: CommandObject, state: FSMContext)
                 f"Привет, {message.from_user.first_name}! 👋\n",
                 reply_markup=get_actions_keyboard()
             )
-
         await state.set_state(ActionForm.action_choose)
 
-    source = await Source.get_or_none(link_word=link_word).prefetch_related("user")
+    else:
+        source = await Source.get_or_none(link_word=link_word).prefetch_related("user")
+        if not source:
+            await message.answer("⚠️ Источник не существует, или ссылка устарела")
+            return
+        if source.user.telegram_id == message.from_user.id:
+            bot_info = await message.bot.get_me()
+            await message.answer(
+                "Это созданная тобой ссылка! Поделись ею с читателями :))\n\n"
+                f"t.me/{bot_info.username}?start={link_word}"
+            )
+            return
+        await state.update_data(source_id=source.id)
+        await state.set_state(SendAnonymousMessage.waiting_for_text)
 
-    if not source:
-        await message.answer("⚠️ Источник не существует, или ссылка устарела")
-        return
-
-    if source.user.telegram_id == message.from_user.id:
-        bot_info = await message.bot.get_me()
         await message.answer(
-            "Это созданная тобой ссылка! Поделись ею с читателями :))\n\n"
-            f"t.me/{bot_info.username}?start={link_word}"
+            f"✍️ <b>Напиши анонимное сообщение.</b>\n"
+            f"Получатель не узнает, кто его отправил."
         )
-        return
 
-    await state.update_data(source_id=source.id)
-    await state.set_state(SendAnonymousMessage.waiting_for_text)
 
-    await message.answer(
-        f"✍️ Напиши анонимное сообщение, оно упадёт в папку **{source.name}**.\n"
-        f"Получатель не узнает, кто его отправил."
+@router.message(SendAnonymousMessage.waiting_for_text)
+async def process_message(message: Message, state: FSMContext):
+    await state.update_data(text=message.text)
+    user_data = await state.get_data()
+    user = await User.get(telegram_id=message.from_user.id)
+    source = await Source.get(id=user_data['source_id'])
+    await AnonimMessage.create(
+        user=user,
+        source=source,
+        text=user_data['text'],
+        created_at=now_msk(),
     )
+    await message.answer(
+        f"Твоё сообщение отправлено!\n\nТы можешь сделать себе такую ссылку и получать анонимные вопросы — /start"
+    )
+
 
 @router.callback_query(ActionForm.action_choose, ActionCallback.filter())
 async def action_chosen(
@@ -80,10 +98,15 @@ async def action_chosen(
         )
         await state.set_state(AddSource.waiting_for_name)
 
-
     elif callback_data.action_code == "show":
+        user = await User.get(telegram_id=callback.from_user.id)
+        bot_info = await callback.bot.get_me()
+        source_list = await Source.filter(user=user)
+        answer = "<b>Твои источники:</b>\n\n"
+        for source in source_list:
+            answer += f"  – {source.name}:\n<code>t.me/{bot_info.username}?start={source.link_word}</code>\n\n"
         await callback.message.edit_text(
-            "Твои источники"
+            answer
         )
 
 
@@ -106,22 +129,23 @@ async def process_link_word(message: Message, state: FSMContext):
         return
 
     user_data = await state.get_data()
-    now_msk = datetime.now(ZoneInfo("Europe/Moscow"))
+    user = await User.get(telegram_id=message.from_user.id)
     source = await Source.create(
-        user_id=message.from_user.id,
+        user=user,
         name=user_data["name"],
         link_word=message.text,
-        created_at=now_msk
+        created_at=now_msk(),
     )
 
     await state.clear()
 
     bot_info = await message.bot.get_me()
     await message.answer(
-        f"✅ **Источник «{source.name}» успешно создан!**\n\n"
-        f"🔗 Твоя ссылка:\nt.me/{bot_info.username}?start={source.link_word}\n\n"
+        f"✅ <b>Источник «{source.name}» успешно создан!</b>\n\n"
+        f"🔗 Твоя ссылка:\n<code>t.me/{bot_info.username}?start={source.link_word}</code>\n\n"
         f"Делись этой ссылкой в одном блоге/чате, чтобы не путать источники."
     )
+
 
 @router.message(SendAnonymousMessage.waiting_for_text)
 async def process_anonymous_message(message: Message, state: FSMContext):
@@ -133,5 +157,3 @@ async def process_anonymous_message(message: Message, state: FSMContext):
         await message.answer("Ошибка: источник больше не существует.")
         await state.clear()
         return
-
-    
