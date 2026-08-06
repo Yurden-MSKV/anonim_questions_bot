@@ -32,14 +32,14 @@ async def cmd_start(message: Message, command: CommandObject, state: FSMContext)
 
     if not link_word:
         if created:
-            print("Новый пользователь")
+            print(f"Новый пользователь — {message.from_user.first_name}!")
             await message.answer(
                 f"Привет, {message.from_user.first_name}! 👋\n"
                 "Это бот-агрегатор для анонимных сообщений. Заведи несколько источников в одном месте, чтобы не путать, откуда тебе пишут читатели.",
                 reply_markup=get_actions_keyboard()
             )
         else:
-            print("Пользователь есть в базе")
+            print(f"Пользователь {message.from_user.first_name} есть в базе!")
             await message.answer(
                 f"Привет, {message.from_user.first_name}! 👋\n",
                 reply_markup=get_actions_keyboard()
@@ -71,10 +71,11 @@ async def cmd_start(message: Message, command: CommandObject, state: FSMContext)
 async def process_message(message: Message, state: FSMContext):
     await state.update_data(text=message.text)
     user_data = await state.get_data()
-    user = await User.get(telegram_id=message.from_user.id)
-    source = await Source.get(id=user_data['source_id'])
+    sender = await User.get(telegram_id=message.from_user.id)
+    source = await Source.get(id=user_data['source_id']).prefetch_related('user')
+    recipient_tg_id = source.user.telegram_id
     await AnonimMessage.create(
-        user=user,
+        user=sender,
         source=source,
         text=user_data['text'],
         created_at=now_msk(),
@@ -82,6 +83,16 @@ async def process_message(message: Message, state: FSMContext):
     await message.answer(
         f"Твоё сообщение отправлено!\n\nТы можешь сделать себе такую ссылку и получать анонимные вопросы — /start"
     )
+    await message.bot.send_message(
+        chat_id=recipient_tg_id,
+        text=(
+            f"📩<b>У тебя новое сообщение!</b>\n"
+            f"📫<b>Источник:</b> {source.name}\n\n"
+            f"{message.text}"
+        )
+    )
+
+    await state.clear()
 
 
 @router.callback_query(ActionForm.action_choose, ActionCallback.filter())

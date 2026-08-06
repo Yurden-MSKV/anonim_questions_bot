@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  anon_bot:
+    build: .
+    container_name: anon_ask_bot
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      # Пробрасываем базу данных из контейнера на реальный диск виртуалки,
+      # чтобы при пересборке контейнера данные НЕ пропадали!
+      - sqlite_data:/app/data
+
+volumes:
+  # Объявляем изолированный том для базы
+  sqlite_data:
