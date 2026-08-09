@@ -34,14 +34,16 @@ async def cmd_start(message: Message, command: CommandObject, state: FSMContext)
         if created:
             print(f"Новый пользователь — {message.from_user.first_name}!")
             await message.answer(
-                f"Привет, {message.from_user.first_name}! 👋\n"
-                "Это бот-агрегатор для анонимных сообщений. Заведи несколько источников в одном месте, чтобы не путать, откуда тебе пишут читатели.",
+                f"👋 Привет, {message.from_user.first_name}! Я помогу тебе получать анонимные вопросы из разных мест!\n\n"
+                    f"🗂 Создавай ссылки для блогов, каналов, сайтов — даже если тематики разные, ты не запутаешься!\n\n"
+                    f"Попробуй, это удобно!",
                 reply_markup=get_actions_keyboard()
             )
         else:
             print(f"Пользователь {message.from_user.first_name} есть в базе!")
             await message.answer(
-                f"Привет, {message.from_user.first_name}! 👋\n",
+                f"Привет, {message.from_user.first_name}! 👋\n\n"
+                    f"Что делаем?",
                 reply_markup=get_actions_keyboard()
             )
         await state.set_state(ActionForm.action_choose)
@@ -59,12 +61,12 @@ async def cmd_start(message: Message, command: CommandObject, state: FSMContext)
             )
             return
         await state.update_data(source_id=source.id)
+        await message.answer(
+            f" 👋 Привет! Ты перешёл по ссылке {link_word} для анонимных сообщений."
+            "✏️ Напиши своё сообщение, получатель не узнает, что оно от тебя!"
+        )
         await state.set_state(SendAnonymousMessage.waiting_for_text)
 
-        await message.answer(
-            f"✍️ <b>Напиши анонимное сообщение.</b>\n"
-            f"Получатель не узнает, кто его отправил."
-        )
 
 
 @router.message(SendAnonymousMessage.waiting_for_text)
@@ -86,8 +88,8 @@ async def process_message(message: Message, state: FSMContext):
     await message.bot.send_message(
         chat_id=recipient_tg_id,
         text=(
-            f"📩<b>У тебя новое сообщение!</b>\n"
-            f"📫<b>Источник:</b> {source.name}\n\n"
+            f"📩 <b>У тебя новое сообщение!</b>\n"
+            f"📫 <b>Источник:</b> {source.name}\n\n"
             f"{message.text}"
         )
     )
@@ -113,7 +115,7 @@ async def action_chosen(
         user = await User.get(telegram_id=callback.from_user.id)
         bot_info = await callback.bot.get_me()
         source_list = await Source.filter(user=user)
-        answer = "<b>Твои источники:</b>\n\n"
+        answer = "<b>🗂 Твои ссылки:</b>\n\n"
         for source in source_list:
             answer += f"  – {source.name}:\n<code>t.me/{bot_info.username}?start={source.link_word}</code>\n\n"
         await callback.message.edit_text(
@@ -125,7 +127,7 @@ async def action_chosen(
 async def process_name(message: Message, state: FSMContext):
     await state.update_data(name=message.text)
     await state.set_state(AddSource.waiting_for_link_word)
-    await message.answer("А теперь введи фразу для ссылки (латиницей, вместо пробелов — подчёркивание (_)")
+    await message.answer("А теперь введи именную фразу для ссылки (латиницей, вместо пробелов — подчёркивание (_).\n\nНапример: vlad_vopros")
 
 
 @router.message(AddSource.waiting_for_link_word)
@@ -135,7 +137,7 @@ async def process_link_word(message: Message, state: FSMContext):
     exists = await Source.filter(link_word=link_word).exists()
     if exists:
         await message.answer(
-            "Эта ссылка уже занята другим источником!\nПопробуй вести другую фразу."
+            "Эта ссылка уже занята другим источником!\n\nПопробуй вести другую фразу."
         )
         return
 

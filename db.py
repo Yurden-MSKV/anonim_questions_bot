@@ -3,14 +3,7 @@ import config
 
 
 async def init_db():
-    await Tortoise.init(
-        db_url=config.BASE_URL,
-        modules={
-            'models': ['models']
-        },
-        use_tz=False,
-    )
-    await Tortoise.generate_schemas()
+    await Tortoise.init(config=config.TORTOISE_ORM)
 
 async def close_db():
     await Tortoise.close_connections()
