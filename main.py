@@ -2,6 +2,7 @@ import asyncio
 import logging
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
+from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.enums import ParseMode
 from aiogram.types import BotCommand, BotCommandScopeDefault
 
@@ -23,8 +24,13 @@ async def set_main_menu(bot: Bot):
 
 async def main():
     await init_db()
+
+    # Создаем сессию с явным указанием локального HTTP-прокси Xray
+    session = AiohttpSession(proxy="socks5://127.0.0.1:10808")
+
     bot = Bot(
         token=config.BOT_TOKEN,
+        session=session,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML)
     )
 
