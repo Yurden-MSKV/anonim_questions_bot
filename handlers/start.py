@@ -32,7 +32,7 @@ async def cmd_start(message: Message, command: CommandObject, state: FSMContext)
 
     if not link_word:
         if created:
-            print(f"Новый пользователь — {message.from_user.first_name}!")
+            # print(f"Новый пользователь — {message.from_user.first_name}!")
             await message.answer(
                 f"👋 Привет, {message.from_user.first_name}! Я помогу тебе получать анонимные вопросы из разных мест!\n\n"
                     f"🗂 Создавай ссылки для блогов, каналов, сайтов — даже если тематики разные, ты не запутаешься!\n\n"
@@ -40,7 +40,7 @@ async def cmd_start(message: Message, command: CommandObject, state: FSMContext)
                 reply_markup=get_actions_keyboard()
             )
         else:
-            print(f"Пользователь {message.from_user.first_name} есть в базе!")
+            # print(f"Пользователь {message.from_user.first_name} есть в базе!")
             await message.answer(
                 f"Привет, {message.from_user.first_name}! 👋\n\n"
                     f"Что делаем?",
@@ -56,13 +56,13 @@ async def cmd_start(message: Message, command: CommandObject, state: FSMContext)
         if source.user.telegram_id == message.from_user.id:
             bot_info = await message.bot.get_me()
             await message.answer(
-                "Это созданная тобой ссылка! Поделись ею с читателями :))\n\n"
-                f"t.me/{bot_info.username}?start={link_word}"
+                "🫵 Это созданная тобой ссылка! Поделись ею с аудиторией :))\n\n"
+                f"<code>t.me/{bot_info.username}?start={link_word}</code>"
             )
             return
         await state.update_data(source_id=source.id)
         await message.answer(
-            f" 👋 Привет! Ты перешёл по ссылке {link_word} для анонимных сообщений."
+            f"👋 Привет! Ты перешёл по ссылке /{link_word} для анонимных сообщений.\n\n"
             "✏️ Напиши своё сообщение, получатель не узнает, что оно от тебя!"
         )
         await state.set_state(SendAnonymousMessage.waiting_for_text)
