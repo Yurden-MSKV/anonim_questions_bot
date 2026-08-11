@@ -9,12 +9,12 @@ def get_actions_keyboard():
     builder = InlineKeyboardBuilder()
 
     builder.button(
-        text="📝Добавить источник",
+        text="📝Создать ссылку",
         callback_data=ActionCallback(action_code="add")
     )
 
     builder.button(
-        text="🔎Посмотреть источники",
+        text="🔎Посмотреть ссылки",
         callback_data=ActionCallback(action_code="show")
     )
 

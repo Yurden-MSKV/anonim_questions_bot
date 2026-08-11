@@ -12,3 +12,6 @@ class AddSource(StatesGroup):
 
 class SendAnonymousMessage(StatesGroup):
     waiting_for_text = State()
+
+class DeleteSource(StatesGroup):
+    waiting_for_link_word = State()

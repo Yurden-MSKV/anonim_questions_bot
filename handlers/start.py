@@ -9,7 +9,7 @@ from aiogram.types import Message, CallbackQuery
 
 from keyboards.actions import get_actions_keyboard, ActionCallback
 from models import User, Source, AnonimMessage
-from states.action_state import ActionForm, AddSource, SendAnonymousMessage
+from states.action_state import ActionForm, AddSource, SendAnonymousMessage, DeleteSource
 
 router = Router()
 
@@ -120,12 +120,20 @@ async def action_chosen(
         user = await User.get(telegram_id=callback.from_user.id)
         bot_info = await callback.bot.get_me()
         source_list = await Source.filter(user=user)
-        answer = "<b>🗂 Твои ссылки:</b>\n\n"
-        for source in source_list:
-            answer += f"  – {source.name}:\n<code>t.me/{bot_info.username}?start={source.link_word}</code>\n\n"
-        await callback.message.edit_text(
-            answer
-        )
+        if source_list:
+            answer = "<b>🗂 Твои ссылки:</b>\n\n"
+            for source in source_list:
+                answer += f"  – {source.name}:\n<code>t.me/{bot_info.username}?start={source.link_word}</code>\n\n"
+            answer += f"🗑 Если нужно удалить ссылку — отправь мне её целиком."
+            await callback.message.edit_text(
+                answer
+            )
+            await state.set_state(DeleteSource.waiting_for_link_word)
+
+        else:
+            await callback.message.edit_text(
+                f"🙂‍↔️ У тебя ещё нет ни одной ссылки. Чтобы создать — жми /start"
+            )
 
 
 @router.message(AddSource.waiting_for_name)
