@@ -1,7 +1,7 @@
 from aiogram import Router, Bot, F
 from aiogram.types import Message
 from models import AnonimMessage
-from start import now_msk
+from handlers.start import now_msk
 
 router = Router()
 
