@@ -35,3 +35,5 @@ TORTOISE_ORM = {
         },
     },
 }
+
+PROXY_URL = os.getenv("PROXY_URL", None)

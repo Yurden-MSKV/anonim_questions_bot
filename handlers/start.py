@@ -2,7 +2,7 @@ import zoneinfo
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from aiogram import Router, F
+from aiogram import Router, F, Bot
 from aiogram.filters import CommandStart, Command, CommandObject
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
@@ -70,28 +70,33 @@ async def cmd_start(message: Message, command: CommandObject, state: FSMContext)
 
 
 @router.message(SendAnonymousMessage.waiting_for_text)
-async def process_message(message: Message, state: FSMContext):
+async def process_message(message: Message, state: FSMContext, bot: Bot):
     await state.update_data(text=message.text)
     user_data = await state.get_data()
     sender = await User.get(telegram_id=message.from_user.id)
     source = await Source.get(id=user_data['source_id']).prefetch_related('user')
-    recipient_tg_id = source.user.telegram_id
+    recipient = source.user
+
+    sent_message = await bot.send_message(
+        chat_id=recipient.telegram_id,
+        text=(
+            f"📩 <b>Новая анонимка!</b>\n"
+            f"📫 <b>Источник:</b> {source.name}\n\n"
+            f"<blockquote>{message.text}</blockquote>"
+        )
+    )
+
     await AnonimMessage.create(
-        user=sender,
+        sender=sender,
+        recipient=recipient,
         source=source,
         text=user_data['text'],
         created_at=now_msk(),
+        msg_id_in_recipient_chat=sent_message.message_id
     )
+
     await message.answer(
-        f"Твоё сообщение отправлено!\n\nТы можешь сделать себе такую ссылку и получать анонимные вопросы — /start"
-    )
-    await message.bot.send_message(
-        chat_id=recipient_tg_id,
-        text=(
-            f"📩 <b>У тебя новое сообщение!</b>\n"
-            f"📫 <b>Источник:</b> {source.name}\n\n"
-            f"{message.text}"
-        )
+        f"✅ Твоё сообщение отправлено!\n\nТы можешь сделать себе такую ссылку и получать анонимные вопросы — /start"
     )
 
     await state.clear()

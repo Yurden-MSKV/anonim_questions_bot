@@ -26,7 +26,8 @@ async def main():
     await init_db()
 
     # Создаем сессию с явным указанием локального HTTP-прокси Xray
-    session = AiohttpSession(proxy="socks5://127.0.0.1:10808")
+    # session = AiohttpSession(proxy="socks5://127.0.0.1:10808")
+    session = AiohttpSession(proxy=config.PROXY_URL) if getattr(config, "PROXY_URL", None) else None
 
     bot = Bot(
         token=config.BOT_TOKEN,

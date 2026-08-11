@@ -31,12 +31,14 @@ class Source(Model):
 
 class AnonimMessage(Model):
     id = fields.BigIntField(pk=True)
-    user = fields.ForeignKeyField('models.User', related_name='all_messages', on_delete=fields.CASCADE)
+    sender = fields.ForeignKeyField('models.User', related_name='sent_messages', on_delete=fields.CASCADE)
+    recipient = fields.ForeignKeyField('models.User', related_name='received_messages', on_delete=fields.CASCADE)
     source = fields.ForeignKeyField('models.Source',
                                     related_name='messages',
                                     on_delete=fields.CASCADE)
     text = fields.TextField()
     created_at = fields.DatetimeField(null=True)
+    msg_id_in_recipient_chat = fields.BigIntField(null=True)
 
     class Meta:
         table = 'anonymous_messages'
