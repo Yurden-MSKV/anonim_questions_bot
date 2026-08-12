@@ -1,7 +1,11 @@
 from aiogram import Router, Bot, F
-from aiogram.types import Message, ReplyParameters
-from models import AnonimMessage
+from aiogram.fsm.context import FSMContext
+from aiogram.types import Message, ReplyParameters, CallbackQuery
+
+from keyboards.actions import ActionCallback
+from models import AnonimMessage, User
 from handlers.start import now_msk
+from states.action_state import ActionForm
 
 router = Router()
 
@@ -49,3 +53,11 @@ async def process_reply(message: Message, bot: Bot):
         await message.answer(
             f"😢 Сообщение НЕ доставилось. Получатель заблокировал бота или удалил чат."
         )
+
+@router.callback_query(ActionCallback.filter(F.action_code == "block"))
+async def block_action(
+        callback: CallbackQuery,
+        callback_data: ActionCallback
+):
+    user = await User.get(telegram_id=callback)
+    await callback.answer("Пользователь заблокирован", show_alert=True)

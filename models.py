@@ -7,6 +7,7 @@ class User(Model):
     telegram_id = fields.BigIntField(unique=True,
                                      index=True)
     created_at = fields.DatetimeField(null=True)
+    data = fields.JSONField(default=dict, null=True)
 
     class Meta:
         table = 'users'

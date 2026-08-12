@@ -20,3 +20,14 @@ def get_actions_keyboard():
 
     builder.adjust(1)
     return builder.as_markup()
+
+def get_blacklist_keyboard():
+    builder = InlineKeyboardBuilder()
+
+    builder.button(
+        text='🚫Заблокировать',
+        callback_data=ActionCallback(action_code="block")
+    )
+
+    builder.adjust(1)
+    return builder.as_markup()

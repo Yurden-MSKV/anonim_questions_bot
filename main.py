@@ -8,7 +8,7 @@ from aiogram.types import BotCommand, BotCommandScopeDefault
 
 import config
 from db import init_db, close_db
-from handlers import start, replies
+from handlers import start, replies, source_list
 
 logging.basicConfig(level=logging.INFO)
 
@@ -42,6 +42,7 @@ async def main():
     dp.include_routers(
         start.router,
         replies.router,
+        source_list.router,
     )
 
     try:

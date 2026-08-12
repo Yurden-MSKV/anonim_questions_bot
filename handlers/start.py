@@ -7,7 +7,7 @@ from aiogram.filters import CommandStart, Command, CommandObject
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 
-from keyboards.actions import get_actions_keyboard, ActionCallback
+from keyboards.actions import ActionCallback, get_actions_keyboard, get_blacklist_keyboard
 from models import User, Source, AnonimMessage
 from states.action_state import ActionForm, AddSource, SendAnonymousMessage, DeleteSource
 
@@ -83,7 +83,8 @@ async def process_message(message: Message, state: FSMContext, bot: Bot):
             f"📩 <b>Новая анонимка!</b>\n"
             f"📫 <b>Источник:</b> {source.name}\n\n"
             f"<blockquote>{message.text}</blockquote>"
-        )
+        ),
+        reply_markup=get_blacklist_keyboard()
     )
 
     await AnonimMessage.create(
