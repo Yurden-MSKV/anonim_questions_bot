@@ -25,6 +25,7 @@ async def cmd_start(message: Message, command: CommandObject, state: FSMContext)
         telegram_id=tg_user.id,
         defaults={
             "created_at": now_msk(),
+            "data": {'blacklist': []}
         }
     )
 
