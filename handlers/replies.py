@@ -59,5 +59,12 @@ async def block_action(
         callback: CallbackQuery,
         callback_data: ActionCallback
 ):
-    user = await User.get(telegram_id=callback)
+    anon_msg = await AnonimMessage.get_or_none(msg_id_in_recipient_chat=callback.message.message_id).prefetch_related('sender', 'recipient')
+    if not anon_msg:
+        return
+    recipient = anon_msg.recipient
+    sender = anon_msg.sender
+    if sender:
+        recipient.data["blacklist"].append(sender.telegram_id)
+        await recipient.save()
     await callback.answer("Пользователь заблокирован", show_alert=True)
