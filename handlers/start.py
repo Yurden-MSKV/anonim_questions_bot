@@ -62,6 +62,15 @@ async def cmd_start(message: Message, command: CommandObject, state: FSMContext)
             return
         await state.update_data(source_id=source.id)
 
+        owner = source.user
+        blacklist = owner.data.get('blacklist')
+
+        if user.telegram_id in blacklist:
+            await message.answer(
+                f"🚫 Отправить сообщение не получится: владелец ссылки добавил тебя в чёрный список."
+            )
+            return
+
         current_month = datetime.now().strftime("%Y-%m")
 
         if not source.data:
@@ -86,7 +95,7 @@ async def cmd_start(message: Message, command: CommandObject, state: FSMContext)
         await source.save(update_fields=['data'])
 
         await message.answer(
-            f"👋 Привет! Ты перешёл по ссылке /{link_word} для анонимных сообщений.\n\n"
+            f"👋 Привет! Ты перешёл по ссылке [{link_word}] для анонимных сообщений.\n\n"
             "✏️ Напиши своё сообщение, получатель не узнает, что оно от тебя!"
         )
         await state.set_state(SendAnonymousMessage.waiting_for_text)
@@ -107,7 +116,7 @@ async def process_message(message: Message, state: FSMContext, bot: Bot):
             f"📩 <b>Новая анонимка!</b>\n"
             f"📫 <b>Источник:</b> {source.name}\n\n"
             f"<blockquote>{message.text}</blockquote>\n\n"
-            f"Ты можешь ответить человеку или уточнить вопрос прямо здесь — просто свайпни или ПКМ → Ответить"
+            f"Нужно что-то уточнить или хочешь ответить человеку здесь — отправь сообщение <b><i>ответом</i></b>."
         ),
         reply_markup=get_blacklist_keyboard()
     )
