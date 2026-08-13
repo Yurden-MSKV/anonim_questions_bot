@@ -1,4 +1,5 @@
 from aiogram.filters.callback_data import CallbackData
+from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 
@@ -21,13 +22,18 @@ def get_actions_keyboard():
     builder.adjust(1)
     return builder.as_markup()
 
-def get_blacklist_keyboard():
+def get_blacklist_keyboard(is_blocked: bool = False) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
-    builder.button(
-        text='🚫Заблокировать',
-        callback_data=ActionCallback(action_code="block")
-    )
-
+    if is_blocked:
+        builder.button(
+            text="🔓Разблокировать",
+            callback_data=ActionCallback(action_code="unblock").pack()
+        )
+    else:
+        builder.button(
+            text="🚫Заблокировать",
+            callback_data=ActionCallback(action_code="block").pack()
+        )
     builder.adjust(1)
     return builder.as_markup()

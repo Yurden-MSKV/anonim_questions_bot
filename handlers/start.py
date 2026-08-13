@@ -61,6 +61,30 @@ async def cmd_start(message: Message, command: CommandObject, state: FSMContext)
             )
             return
         await state.update_data(source_id=source.id)
+
+        current_month = datetime.now().strftime("%Y-%m")
+
+        if not source.data:
+            source.data = {
+                'total_clicks': 0,
+                'total_msg': 0,
+                'month_key': current_month,
+                'month_clicks': 0,
+                'month_msg': 0
+            }
+
+        last_month = source.data.get('month_key')
+
+        if last_month != current_month:
+            source.data['month_key'] = current_month
+            source.data['month_clicks'] = 0
+            source.data['month_msg'] = 0
+
+        source.data['total_clicks'] += 1
+        source.data['month_clicks'] += 1
+
+        await source.save(update_fields=['data'])
+
         await message.answer(
             f"👋 Привет! Ты перешёл по ссылке /{link_word} для анонимных сообщений.\n\n"
             "✏️ Напиши своё сообщение, получатель не узнает, что оно от тебя!"
@@ -82,7 +106,8 @@ async def process_message(message: Message, state: FSMContext, bot: Bot):
         text=(
             f"📩 <b>Новая анонимка!</b>\n"
             f"📫 <b>Источник:</b> {source.name}\n\n"
-            f"<blockquote>{message.text}</blockquote>"
+            f"<blockquote>{message.text}</blockquote>\n\n"
+            f"Ты можешь ответить человеку или уточнить вопрос прямо здесь — просто свайпни или ПКМ → Ответить"
         ),
         reply_markup=get_blacklist_keyboard()
     )
@@ -95,6 +120,29 @@ async def process_message(message: Message, state: FSMContext, bot: Bot):
         created_at=now_msk(),
         msg_id_in_recipient_chat=sent_message.message_id
     )
+
+    current_month = datetime.now().strftime("%Y-%m")
+
+    if not source.data:
+        source.data = {
+            'total_clicks': 0,
+            'total_msg': 0,
+            'month_key': current_month,
+            'month_clicks': 0,
+            'month_msg': 0
+        }
+
+    last_month = source.data.get('month_key')
+
+    if last_month != current_month:
+        source.data['month_key'] = current_month
+        source.data['month_clicks'] = 0
+        source.data['month_msg'] = 0
+
+    source.data['total_msg'] += 1
+    source.data['month_msg'] += 1
+
+    await source.save(update_fields=['data'])
 
     await message.answer(
         f"✅ Твоё сообщение отправлено!\n\nТы можешь сделать себе такую ссылку и получать анонимные вопросы — /start"

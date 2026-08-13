@@ -2,7 +2,7 @@ from aiogram import Router, Bot, F
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, ReplyParameters, CallbackQuery
 
-from keyboards.actions import ActionCallback
+from keyboards.actions import ActionCallback, get_blacklist_keyboard
 from models import AnonimMessage, User
 from handlers.start import now_msk
 from states.action_state import ActionForm
@@ -57,7 +57,7 @@ async def process_reply(message: Message, bot: Bot):
 @router.callback_query(ActionCallback.filter(F.action_code == "block"))
 async def block_action(
         callback: CallbackQuery,
-        callback_data: ActionCallback
+        # callback_data: ActionCallback
 ):
     anon_msg = await AnonimMessage.get_or_none(msg_id_in_recipient_chat=callback.message.message_id).prefetch_related('sender', 'recipient')
     if not anon_msg:
@@ -65,6 +65,48 @@ async def block_action(
     recipient = anon_msg.recipient
     sender = anon_msg.sender
     if sender:
-        recipient.data["blacklist"].append(sender.telegram_id)
-        await recipient.save()
-    await callback.answer("Пользователь заблокирован", show_alert=True)
+        if not recipient.data:
+            recipient.data = {}
+        blacklist = recipient.data.setdefault('blacklist', [])
+        sender_id = sender.telegram_id
+        if sender_id not in blacklist:
+            blacklist.append(sender_id)
+            await recipient.save(update_fields=['data'])
+            await callback.message.edit_reply_markup(
+                reply_markup=get_blacklist_keyboard(is_blocked=True)
+            )
+            await callback.answer("Отправитель заблокирован!")
+        else:
+            await callback.answer("Отправитель уже в черном списке.")
+
+
+@router.callback_query(ActionCallback.filter(F.action_code == "unblock"))
+async def unblock_action(callback: CallbackQuery):
+    anon_msg = await AnonimMessage.get_or_none(
+        msg_id_in_recipient_chat=callback.message.message_id
+    ).prefetch_related('sender', 'recipient')
+
+    if not anon_msg:
+        await callback.answer("Сообщение не найдено", show_alert=True)
+        return
+
+    recipient = anon_msg.recipient
+    sender = anon_msg.sender
+
+    if sender:
+        if not recipient.data:
+            recipient.data = {}
+
+        blacklist = recipient.data.get('blacklist', [])
+        sender_id = sender.telegram_id
+
+        if sender_id in blacklist:
+            blacklist.remove(sender_id)
+            await recipient.save(update_fields=['data'])
+
+            await callback.message.edit_reply_markup(
+                reply_markup=get_blacklist_keyboard(is_blocked=False)
+            )
+            await callback.answer("Отправитель разблокирован!")
+        else:
+            await callback.answer("Отправитель не был заблокирован.")

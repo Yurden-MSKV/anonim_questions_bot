@@ -26,6 +26,7 @@ class Source(Model):
     link_word = fields.CharField(max_length=50,
                                  unique=True)
     created_at = fields.DatetimeField(null=True)
+    data = fields.JSONField(default=dict, null=True)
 
     class Meta:
         table = "sources"
