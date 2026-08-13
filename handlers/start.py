@@ -64,7 +64,9 @@ async def cmd_start(message: Message, command: CommandObject, state: FSMContext)
         await state.update_data(source_id=source.id)
 
         owner = source.user
-        blacklist = owner.data.get('blacklist')
+        if not owner.data:
+            owner.data = {}
+        blacklist = owner.data.setdefault('blacklist', [])
 
         if user.telegram_id in blacklist:
             await message.answer(
