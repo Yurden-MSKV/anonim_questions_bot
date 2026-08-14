@@ -61,6 +61,8 @@ async def block_action(
 ):
     anon_msg = await AnonimMessage.get_or_none(msg_id_in_recipient_chat=callback.message.message_id).prefetch_related('sender', 'recipient')
     if not anon_msg:
+        print('Сообщение не найдено')
+        await callback.answer()
         return
     recipient = anon_msg.recipient
     sender = anon_msg.sender
@@ -78,7 +80,10 @@ async def block_action(
             await callback.answer("Отправитель заблокирован!")
         else:
             await callback.answer("Отправитель уже в черном списке.")
-
+    else:
+        print('Пользователь не найден')
+        await callback.answer(f"🚫 Пользователь не найден.")
+        return
 
 @router.callback_query(ActionCallback.filter(F.action_code == "unblock"))
 async def unblock_action(callback: CallbackQuery):
