@@ -34,6 +34,8 @@ TORTOISE_ORM = {
             "default_connection": "default",
         },
     },
+    "use_tz": True,
+    "timezone": "Europe/Moscow",
 }
 
 PROXY_URL = os.getenv("PROXY_URL", None)

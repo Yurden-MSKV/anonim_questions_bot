@@ -6,7 +6,7 @@ class User(Model):
     id = fields.BigIntField(pk=True)
     telegram_id = fields.BigIntField(unique=True,
                                      index=True)
-    created_at = fields.DatetimeField(null=True)
+    created_at = fields.DatetimeField(null=True, auto_now_add=True)
     # TODO: будет выдавать ошибку, разобраться с этим полем
     data = fields.JSONField(default=dict, null=True)
 
@@ -25,7 +25,7 @@ class Source(Model):
     name = fields.CharField(max_length=50)
     link_word = fields.CharField(max_length=50,
                                  unique=True)
-    created_at = fields.DatetimeField(null=True)
+    created_at = fields.DatetimeField(null=True, auto_now_add=True)
     data = fields.JSONField(default=dict, null=True)
 
     class Meta:
@@ -51,3 +51,9 @@ class AnonimMessage(Model):
 
     class Meta:
         table = 'anonymous_messages'
+
+
+class SystemStats(Model):
+    id = fields.BigIntField(pk=True)
+    user_count = fields.BigIntField()
+    

@@ -8,7 +8,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 
 from keyboards.actions import ActionCallback, get_actions_keyboard, get_blacklist_keyboard
-from models import User, Source, AnonimMessage
+from models import User, Source, AnonimMessage, SystemStats
 from states.action_state import ActionForm, AddSource, SendAnonymousMessage, DeleteSource
 
 router = Router()
@@ -17,9 +17,11 @@ router = Router()
 def now_msk():
     return datetime.now(zoneinfo.ZoneInfo('Europe/Moscow'))
 
+admin_id = '791693164'
+
 
 @router.message(CommandStart())
-async def cmd_start(message: Message, command: CommandObject, state: FSMContext):
+async def cmd_start(message: Message, command: CommandObject, state: FSMContext, bot: Bot):
     tg_user = message.from_user
     user, created = await User.get_or_create(
         telegram_id=tg_user.id,
@@ -33,7 +35,22 @@ async def cmd_start(message: Message, command: CommandObject, state: FSMContext)
 
     if not link_word:
         if created:
-            # print(f"Новый пользователь — {message.from_user.first_name}!")
+            stats, _ = await SystemStats.get_or_create(
+                id=1,
+                defaults={
+                    'user_count': 0
+                }
+            )
+            stats.user_count += 1
+            await stats.save()
+            await bot.send_message(
+                chat_id=admin_id,
+                text=(
+                    f"👤 Новый пользователь!\n\n"
+                    f"Итого: {stats.user_count}"
+                )
+            )
+
             await message.answer(
                 f"👋 Привет, {message.from_user.first_name}! Я помогу тебе получать анонимные вопросы из разных мест!\n\n"
                     f"🗂 Создавай ссылки для блогов, каналов, сайтов — даже если тематики разные, ты не запутаешься!\n\n"
@@ -98,7 +115,7 @@ async def cmd_start(message: Message, command: CommandObject, state: FSMContext)
         await source.save(update_fields=['data'])
 
         await message.answer(
-            f"👋 Привет! Ты перешёл по ссылке [{link_word}] для анонимных сообщений.\n\n"
+            f"👋 Привет! Ты перешёл по ссылке <b>[{link_word}]</b> для анонимных сообщений.\n\n"
             "✏️ Напиши своё сообщение, получатель не узнает, что оно от тебя!"
         )
         await state.set_state(SendAnonymousMessage.waiting_for_text)
