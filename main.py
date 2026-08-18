@@ -5,6 +5,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.enums import ParseMode
 from aiogram.types import BotCommand, BotCommandScopeDefault
+from middlewares.album import AlbumMiddleware
 
 import config
 from db import init_db, close_db
@@ -36,6 +37,8 @@ async def main():
     )
 
     dp = Dispatcher()
+
+    dp.message.outer_middleware(AlbumMiddleware())
 
     await set_main_menu(bot)
 

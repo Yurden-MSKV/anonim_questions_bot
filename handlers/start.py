@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 from aiogram import Router, F, Bot
 from aiogram.filters import CommandStart, Command, CommandObject
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, InputMediaPhoto
 
 from keyboards.actions import ActionCallback, get_actions_keyboard, get_blacklist_keyboard
 from models import User, Source, AnonimMessage, SystemStats
@@ -121,9 +121,143 @@ async def cmd_start(message: Message, command: CommandObject, state: FSMContext,
         await state.set_state(SendAnonymousMessage.waiting_for_text)
 
 
+@router.message(SendAnonymousMessage.waiting_for_text, F.media_group_id)
+async def process_album(message: Message, state: FSMContext, bot: Bot, album: list[Message]):
+    await state.update_data(text=message.text)
+    user_data = await state.get_data()
+    sender = await User.get(telegram_id=message.from_user.id)
+    source = await Source.get(id=user_data['source_id']).prefetch_related('user')
+    recipient = source.user
 
-@router.message(SendAnonymousMessage.waiting_for_text)
-async def process_message(message: Message, state: FSMContext, bot: Bot):
+    media_group = []
+    caption_text = album[0].caption or '<i>Без текста.</i>'
+    full_caption = f"<blockquote>{caption_text}</blockquote>\n\nСвайпни для ответа ↩️"
+    for index, msg in enumerate(album):
+        photo_id = msg.photo[-1].file_id
+        if index == 0:
+            media_group.append(InputMediaPhoto(media=photo_id, caption=full_caption))
+        else:
+            media_group.append(InputMediaPhoto(media=photo_id))
+
+    sent_message = await bot.send_media_group(
+        chat_id=recipient.telegram_id,
+        media=media_group,
+    )
+
+    block_message = await bot.send_message(
+        chat_id=recipient.telegram_id,
+        text=f"📩 <b>Новая анонимка!</b>\n📫 <b>Источник:</b> {source.name}\n\nКартинки и текст — в сообщении выше ⬆️",
+        reply_markup=get_blacklist_keyboard()
+    )
+
+    await AnonimMessage.create(
+        sender=sender,
+        recipient=recipient,
+        source=source,
+        text=caption_text,
+        created_at=now_msk(),
+        msg_id_in_recipient_chat=sent_message[0].message_id
+    )
+
+    await AnonimMessage.create(
+        sender=sender,
+        recipient=recipient,
+        source=source,
+        text='---',
+        created_at=now_msk(),
+        msg_id_in_recipient_chat=block_message.message_id
+    )
+
+    current_month = datetime.now().strftime("%Y-%m")
+
+    if not source.data:
+        source.data = {
+            'total_clicks': 0,
+            'total_msg': 0,
+            'month_key': current_month,
+            'month_clicks': 0,
+            'month_msg': 0
+        }
+
+    last_month = source.data.get('month_key')
+
+    if last_month != current_month:
+        source.data['month_key'] = current_month
+        source.data['month_clicks'] = 0
+        source.data['month_msg'] = 0
+
+    source.data['total_msg'] += 1
+    source.data['month_msg'] += 1
+
+    await source.save(update_fields=['data'])
+
+    await message.answer(
+        f"✅ Твоё сообщение отправлено!\n\nТы можешь сделать себе такую ссылку и получать анонимные вопросы — /start"
+    )
+
+    await state.clear()
+
+@router.message(SendAnonymousMessage.waiting_for_text, F.photo)
+async def process_album(message: Message, state: FSMContext, bot: Bot):
+    await state.update_data(text=message.text)
+    user_data = await state.get_data()
+    sender = await User.get(telegram_id=message.from_user.id)
+    source = await Source.get(id=user_data['source_id']).prefetch_related('user')
+    recipient = source.user
+
+    photo_id = message.photo[-1].file_id
+
+    text = message.caption or '<i>Без текста.</i>'
+    full_caption = f"📩 <b>Новая анонимка!</b>\n📫 <b>Источник:</b> {source.name}\n\n<blockquote>{text}</blockquote>\n\nСвайпни для ответа ↩️"
+
+    sent_message = await bot.send_photo(
+        chat_id=recipient.telegram_id,
+        photo=photo_id,
+        caption=full_caption,
+        reply_markup=get_blacklist_keyboard()
+    )
+
+    await AnonimMessage.create(
+        sender=sender,
+        recipient=recipient,
+        source=source,
+        text=text,
+        created_at=now_msk(),
+        msg_id_in_recipient_chat=sent_message.message_id
+    )
+
+
+    current_month = datetime.now().strftime("%Y-%m")
+
+    if not source.data:
+        source.data = {
+            'total_clicks': 0,
+            'total_msg': 0,
+            'month_key': current_month,
+            'month_clicks': 0,
+            'month_msg': 0
+        }
+
+    last_month = source.data.get('month_key')
+
+    if last_month != current_month:
+        source.data['month_key'] = current_month
+        source.data['month_clicks'] = 0
+        source.data['month_msg'] = 0
+
+    source.data['total_msg'] += 1
+    source.data['month_msg'] += 1
+
+    await source.save(update_fields=['data'])
+
+    await message.answer(
+        f"✅ Твоё сообщение отправлено!\n\nТы можешь сделать себе такую ссылку и получать анонимные вопросы — /start"
+    )
+
+    await state.clear()
+
+@router.message(SendAnonymousMessage.waiting_for_text, F.text)
+async def process_text(message: Message, state: FSMContext, bot: Bot):
     await state.update_data(text=message.text)
     user_data = await state.get_data()
     sender = await User.get(telegram_id=message.from_user.id)
@@ -145,7 +279,7 @@ async def process_message(message: Message, state: FSMContext, bot: Bot):
         sender=sender,
         recipient=recipient,
         source=source,
-        text=user_data['text'],
+        text=message.text,
         created_at=now_msk(),
         msg_id_in_recipient_chat=sent_message.message_id
     )
@@ -178,7 +312,6 @@ async def process_message(message: Message, state: FSMContext, bot: Bot):
     )
 
     await state.clear()
-
 
 @router.callback_query(ActionForm.action_choose, ActionCallback.filter())
 async def action_chosen(
