@@ -53,7 +53,7 @@ async def main():
 
     try:
         await bot.delete_webhook(drop_pending_updates=True)
-        await check_all_users_status(bot)
+        # await check_all_users_status(bot)
         await dp.start_polling(bot)
     finally:
         await close_db()
