@@ -7,7 +7,7 @@ class User(Model):
     telegram_id = fields.BigIntField(unique=True,
                                      index=True)
     created_at = fields.DatetimeField(null=True, auto_now_add=True)
-    # TODO: будет выдавать ошибку, разобраться с этим полем
+    is_active = fields.BooleanField(default=True)
     data = fields.JSONField(default=dict, null=True)
 
     class Meta:
