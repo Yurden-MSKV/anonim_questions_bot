@@ -5,6 +5,8 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.enums import ParseMode
 from aiogram.types import BotCommand, BotCommandScopeDefault
+
+from check import check_all_users_status
 from middlewares.album import AlbumMiddleware
 
 import config
@@ -51,6 +53,7 @@ async def main():
 
     try:
         await bot.delete_webhook(drop_pending_updates=True)
+        await check_all_users_status(bot)
         await dp.start_polling(bot)
     finally:
         await close_db()
