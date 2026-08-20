@@ -30,27 +30,28 @@ async def cmd_start(message: Message, command: CommandObject, state: FSMContext,
             "data": {'blacklist': []}
         }
     )
+    
+    if created:
+        stats, _ = await SystemStats.get_or_create(
+            id=1,
+            defaults={
+                'user_count': 0
+            }
+        )
+        stats.user_count += 1
+        await stats.save()
+        await bot.send_message(
+            chat_id=admin_id,
+            text=(
+                f"👤 Новый пользователь!\n\n"
+                f"Итого: {stats.user_count}"
+            )
+        )
 
     link_word = command.args
 
     if not link_word:
         if created:
-            stats, _ = await SystemStats.get_or_create(
-                id=1,
-                defaults={
-                    'user_count': 0
-                }
-            )
-            stats.user_count += 1
-            await stats.save()
-            await bot.send_message(
-                chat_id=admin_id,
-                text=(
-                    f"👤 Новый пользователь!\n\n"
-                    f"Итого: {stats.user_count}"
-                )
-            )
-
             await message.answer(
                 f"👋 Привет, {message.from_user.first_name}! Я помогу тебе получать анонимные вопросы из разных мест!\n\n"
                     f"🗂 Создавай ссылки для блогов, каналов, сайтов — даже если тематики разные, ты не запутаешься!\n\n"
