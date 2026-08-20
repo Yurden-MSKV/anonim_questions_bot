@@ -24,7 +24,7 @@ async def process_reply(message: Message, bot: Bot, album: list[Message]):
 
     media_group = []
     text = album[0].caption or '<i>Без текста.</i>'
-    full_caption = f'💬 <b>Тебе ответили!</b>\n\n<blockquote>{text}</blockquote>'
+    full_caption = f'💬 <b>Тебе ответили!</b>\n\n<blockquote>{text}</blockquote>\n\nСвайпни для ответа ↩️'
     for index, msg in enumerate(album):
         photo_id = msg.photo[-1].file_id
         if index == 0:
@@ -76,7 +76,7 @@ async def process_reply(message: Message, bot: Bot):
 
     photo_id = message.photo[-1].file_id
     text = message.caption or '<i>Без текста.</i>'
-    full_caption = f'💬 <b>Тебе ответили!</b>\n\n<blockquote>{text}</blockquote>'
+    full_caption = f'💬 <b>Тебе ответили!</b>\n\n<blockquote>{text}</blockquote>\n\nСвайпни для ответа ↩️'
 
     try:
         sent_message = await bot.send_photo(
@@ -127,7 +127,8 @@ async def process_reply(message: Message, bot: Bot):
             chat_id=anon_msg.sender.telegram_id,
             text=(
                 f"💬 <b>Тебе ответили!</b>\n\n"
-                f"<blockquote>{message.text}</blockquote>"
+                f"<blockquote>{message.text}</blockquote>\n\n"
+                f"Свайпни для ответа ↩️"
             ),
             reply_parameters=ReplyParameters(
                 message_id=anon_msg.msg_id_in_sender_chat,

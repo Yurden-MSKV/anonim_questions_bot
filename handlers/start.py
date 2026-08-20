@@ -270,7 +270,7 @@ async def process_text(message: Message, state: FSMContext, bot: Bot):
             f"📩 <b>Новая анонимка!</b>\n"
             f"📫 <b>Источник:</b> {source.name}\n\n"
             f"<blockquote>{message.text}</blockquote>\n\n"
-            f"Нужно что-то уточнить или хочешь ответить человеку здесь — отправь сообщение <b><i>ответом</i></b>."
+            f"Свайпни для ответа ↩️"
         ),
         reply_markup=get_blacklist_keyboard()
     )
