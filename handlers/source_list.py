@@ -21,10 +21,10 @@ async def show_user_sources(message: Message, user_id: int, state: FSMContext):
         for source in source_list:
             answer += f"  – {source.name}:\n<code>t.me/{bot_info.username}?start={source.link_word}</code>\n\n"
         answer += "✏️ Для настройки/удаления ссылки — отправь мне её целиком."
-        await message.answer(answer)
+        await message.edit_text(answer)
         await state.set_state(EditSource.waiting_for_link_word)
     else:
-        await message.answer("🙂‍↔️ У тебя ещё нет ни одной ссылки. Чтобы создать — жми /start")
+        await message.edit_text("🙂‍↔️ У тебя ещё нет ни одной ссылки. Чтобы создать — жми /start")
         await state.clear()
 
 
