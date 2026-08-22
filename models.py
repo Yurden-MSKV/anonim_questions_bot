@@ -1,14 +1,17 @@
 from tortoise import fields
 from tortoise.models import Model
+from tortoise.contrib.postgres.fields import ArrayField
 
 
 class User(Model):
     id = fields.BigIntField(pk=True)
     telegram_id = fields.BigIntField(unique=True,
                                      index=True)
-    created_at = fields.DatetimeField(null=True, auto_now_add=True)
+    created_at = fields.DatetimeField(null=True,
+                                      auto_now_add=True)
     is_active = fields.BooleanField(default=True)
-    data = fields.JSONField(default=dict, null=True)
+    data = fields.JSONField(default=dict,
+                            null=True)
 
     class Meta:
         table = 'users'
@@ -25,8 +28,10 @@ class Source(Model):
     name = fields.CharField(max_length=50)
     link_word = fields.CharField(max_length=50,
                                  unique=True)
-    created_at = fields.DatetimeField(null=True, auto_now_add=True)
-    data = fields.JSONField(default=dict, null=True)
+    created_at = fields.DatetimeField(null=True,
+                                      auto_now_add=True)
+    data = fields.JSONField(default=dict,
+                            null=True)
 
     class Meta:
         table = "sources"
@@ -38,14 +43,20 @@ class AnonimMessage(Model):
                                     related_name='sent_messages',
                                     on_delete=fields.SET_NULL,
                                     null=True)
-    recipient = fields.ForeignKeyField('models.User',
-                                       related_name='received_messages',
-                                       on_delete=fields.CASCADE)
+    recipients = ArrayField(element_type="BigInt",
+                            default={},
+                            null=True)
+    # recipient = fields.ForeignKeyField('models.User',
+    #                                    related_name='received_messages',
+    #                                    on_delete=fields.CASCADE,
+    #                                    null=True)
     source = fields.ForeignKeyField('models.Source',
                                     related_name='messages',
                                     on_delete=fields.CASCADE)
-    text = fields.TextField()
-    created_at = fields.DatetimeField(null=True)
+    # text = fields.TextField()
+    # created_at = fields.DatetimeField(null=True)
+    data = fields.JSONField(default=dict,
+                            null=True)
     msg_id_in_recipient_chat = fields.BigIntField(null=True)
     msg_id_in_sender_chat = fields.BigIntField(null=True)
 

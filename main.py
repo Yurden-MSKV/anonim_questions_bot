@@ -6,12 +6,13 @@ from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.enums import ParseMode
 from aiogram.types import BotCommand, BotCommandScopeDefault
 
+from add_groups import add_groups_in_sources
 from check import check_all_users_status
 from middlewares.album import AlbumMiddleware
 
 import config
 from db import init_db, close_db
-from handlers import start, replies, source_list, block
+from handlers import start, replies, source_list, block, actions
 
 logging.basicConfig(level=logging.INFO)
 
@@ -27,9 +28,6 @@ async def set_main_menu(bot: Bot):
 
 async def main():
     await init_db()
-
-    # Создаем сессию с явным указанием локального HTTP-прокси Xray
-    # session = AiohttpSession(proxy="socks5://127.0.0.1:10808")
     session = AiohttpSession(proxy=config.PROXY_URL) if getattr(config, "PROXY_URL", None) else None
 
     bot = Bot(
@@ -39,7 +37,6 @@ async def main():
     )
 
     dp = Dispatcher()
-
     dp.message.outer_middleware(AlbumMiddleware())
 
     await set_main_menu(bot)
@@ -49,11 +46,15 @@ async def main():
         replies.router,
         source_list.router,
         block.router,
+        actions.router
     )
 
     try:
         await bot.delete_webhook(drop_pending_updates=True)
+        # Проверка активности пользователей
         # await check_all_users_status(bot)
+        # Проверка групп у источников
+        await add_groups_in_sources(bot)
         await dp.start_polling(bot)
     finally:
         await close_db()

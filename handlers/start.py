@@ -1,6 +1,5 @@
 import zoneinfo
 from datetime import datetime
-from zoneinfo import ZoneInfo
 
 from aiogram import Router, F, Bot
 from aiogram.filters import CommandStart, Command, CommandObject
@@ -9,7 +8,7 @@ from aiogram.types import Message, CallbackQuery, InputMediaPhoto
 
 from keyboards.actions import ActionCallback, get_actions_keyboard, get_blacklist_keyboard
 from models import User, Source, AnonimMessage, SystemStats
-from states.action_state import ActionForm, AddSource, SendAnonymousMessage, DeleteSource
+from states.action_state import ActionForm, AddSource, SendAnonymousMessage, EditSource
 
 router = Router()
 
@@ -30,7 +29,7 @@ async def cmd_start(message: Message, command: CommandObject, state: FSMContext,
             "data": {'blacklist': []}
         }
     )
-    
+
     if created:
         stats, _ = await SystemStats.get_or_create(
             id=1,
@@ -59,7 +58,6 @@ async def cmd_start(message: Message, command: CommandObject, state: FSMContext,
                 reply_markup=get_actions_keyboard()
             )
         else:
-            # print(f"Пользователь {message.from_user.first_name} есть в базе!")
             await message.answer(
                 f"Привет, {message.from_user.first_name}! 👋\n\n"
                     f"Что делаем?",
@@ -140,32 +138,49 @@ async def process_album(message: Message, state: FSMContext, bot: Bot, album: li
         else:
             media_group.append(InputMediaPhoto(media=photo_id))
 
-    sent_message = await bot.send_media_group(
-        chat_id=recipient.telegram_id,
-        media=media_group,
-    )
+    recipient_group = source.data['user_group']
 
-    block_message = await bot.send_message(
-        chat_id=recipient.telegram_id,
-        text=f"📩 <b>Новая анонимка!</b>\n📫 <b>Источник:</b> {source.name}\n\nКартинки и текст — в сообщении выше ⬆️",
-        reply_markup=get_blacklist_keyboard()
-    )
+    msg_dict = {}
+
+    for recipient_id in recipient_group:
+        if source.user.telegram_id == recipient_id:
+            sent_message = await bot.send_media_group(
+                chat_id=recipient_id,
+                media=media_group,
+            )
+            block_message = await bot.send_message(
+                chat_id=recipient_id,
+                text=f"📩 <b>Новая анонимка!</b>\n📫 <b>Источник:</b> {source.name}\n\nКартинки и текст — в сообщении выше ⬆️",
+                reply_markup=get_blacklist_keyboard()
+            )
+            msg_dict[recipient_id] = sent_message[0].message_id
+        else:
+            another_message = await bot.send_media_group(
+                chat_id=recipient_id,
+                media=media_group,
+            )
+            await bot.send_message(
+                chat_id=recipient_id,
+                text=f"📩 <b>Новая анонимка!</b>\n📫 <b>Источник:</b> {source.name}\n\nКартинки и текст — в сообщении выше ⬆️"
+            )
+            msg_dict[recipient_id] = another_message[0].message_id
 
     await AnonimMessage.create(
         sender=sender,
-        recipient=recipient,
+        recipients=recipient_group,
+        # recipient=recipient,
         source=source,
-        text=caption_text,
-        created_at=now_msk(),
+        # text=caption_text,
+        # created_at=now_msk(),
+        data=msg_dict,
         msg_id_in_recipient_chat=sent_message[0].message_id
     )
-
     await AnonimMessage.create(
         sender=sender,
         recipient=recipient,
         source=source,
-        text='---',
-        created_at=now_msk(),
+        # text='---',
+        # created_at=now_msk(),
         msg_id_in_recipient_chat=block_message.message_id
     )
 
@@ -211,22 +226,41 @@ async def process_album(message: Message, state: FSMContext, bot: Bot):
     text = message.caption or '<i>Без текста.</i>'
     full_caption = f"📩 <b>Новая анонимка!</b>\n📫 <b>Источник:</b> {source.name}\n\n<blockquote>{text}</blockquote>\n\nСвайпни для ответа ↩️"
 
-    sent_message = await bot.send_photo(
-        chat_id=recipient.telegram_id,
-        photo=photo_id,
-        caption=full_caption,
-        reply_markup=get_blacklist_keyboard()
-    )
+    recipient_group = source.data['user_group']
+
+    msg_dict = {}
+
+    for recipient_id in recipient_group:
+        if source.user.telegram_id == recipient_id:
+            sent_message = await bot.send_photo(
+                chat_id=recipient_id,
+                photo=photo_id,
+                caption=full_caption,
+                reply_markup=get_blacklist_keyboard()
+            )
+            msg_dict[recipient_id] = sent_message.message_id
+        else:
+            another_message = await bot.send_photo(
+                chat_id=recipient_id,
+                photo=photo_id,
+                caption=full_caption,
+            )
+            # await bot.send_message(
+            #     chat_id=recipient_id,
+            #     text=f"📩 <b>Новая анонимка!</b>\n📫 <b>Источник:</b> {source.name}\n\nКартинки и текст — в сообщении выше ⬆️"
+            # )
+            msg_dict[recipient_id] = another_message.message_id
 
     await AnonimMessage.create(
         sender=sender,
-        recipient=recipient,
+        recipients=recipient_group,
+        # recipient=recipient,
         source=source,
-        text=text,
-        created_at=now_msk(),
+        # text=full_caption,
+        # created_at=now_msk(),
+        data=msg_dict,
         msg_id_in_recipient_chat=sent_message.message_id
     )
-
 
     current_month = datetime.now().strftime("%Y-%m")
 
@@ -262,27 +296,56 @@ async def process_text(message: Message, state: FSMContext, bot: Bot):
     await state.update_data(text=message.text)
     user_data = await state.get_data()
     sender = await User.get(telegram_id=message.from_user.id)
+    sender_id = sender.telegram_id
     source = await Source.get(id=user_data['source_id']).prefetch_related('user')
     recipient = source.user
 
-    sent_message = await bot.send_message(
-        chat_id=recipient.telegram_id,
-        text=(
-            f"📩 <b>Новая анонимка!</b>\n"
-            f"📫 <b>Источник:</b> {source.name}\n\n"
-            f"<blockquote>{message.text}</blockquote>\n\n"
-            f"Свайпни для ответа ↩️"
-        ),
-        reply_markup=get_blacklist_keyboard()
-    )
+    recipient_group = list(source.data['user_group'])
+    link_users = list(source.data['user_group'])
+    if sender_id in recipient_group:
+        recipient_group.remove(sender_id)
+
+    print(f"recipient_group: {recipient_group}")
+    print(f"sender_id: {sender_id}")
+
+    msg_dict = {}
+
+    for recipient_id in recipient_group:
+        if source.user.telegram_id == recipient_id:
+            sent_message = await bot.send_message(
+                chat_id=recipient_id,
+                text=(
+                    f"📩 <b>Новая анонимка!</b>\n"
+                    f"📫 <b>Источник:</b> {source.name}\n\n"
+                    f"<blockquote>{message.text}</blockquote>\n\n"
+                    f"Свайпни для ответа ↩️"
+                ),
+                reply_markup=get_blacklist_keyboard()
+            )
+            msg_dict[recipient_id] = sent_message.message_id
+        else:
+            another_message = await bot.send_message(
+                chat_id=recipient_id,
+                text=(
+                    f"📩 <b>Новая анонимка!</b>\n"
+                    f"📫 <b>Источник:</b> {source.name}\n\n"
+                    f"<blockquote>{message.text}</blockquote>\n\n"
+                    f"Свайпни для ответа ↩️"
+                )
+            )
+            msg_dict[recipient_id] = another_message.message_id
+
 
     await AnonimMessage.create(
         sender=sender,
-        recipient=recipient,
+        recipients=recipient_group,
+        # recipient=recipient,
         source=source,
-        text=message.text,
-        created_at=now_msk(),
-        msg_id_in_recipient_chat=sent_message.message_id
+        # text=message.text,
+        # created_at=now_msk(),
+        data=msg_dict,
+        msg_id_in_recipient_chat=sent_message.message_id,
+        msg_id_in_sender_chat=message.message_id
     )
 
     current_month = datetime.now().strftime("%Y-%m")
@@ -313,76 +376,6 @@ async def process_text(message: Message, state: FSMContext, bot: Bot):
     )
 
     await state.clear()
-
-@router.callback_query(ActionForm.action_choose, ActionCallback.filter())
-async def action_chosen(
-        callback: CallbackQuery,
-        callback_data: ActionCallback,
-        state: FSMContext
-):
-    await state.update_data(chosen_action=callback_data.action_code)
-    await callback.answer()
-    if callback_data.action_code == "add":
-        await callback.message.edit_text(
-            f"Введи название источника."
-        )
-        await state.set_state(AddSource.waiting_for_name)
-
-    elif callback_data.action_code == "show":
-        user = await User.get(telegram_id=callback.from_user.id)
-        bot_info = await callback.bot.get_me()
-        source_list = await Source.filter(user=user)
-        if source_list:
-            answer = "<b>🗂 Твои ссылки:</b>\n\n"
-            for source in source_list:
-                answer += f"  – {source.name}:\n<code>t.me/{bot_info.username}?start={source.link_word}</code>\n\n"
-            answer += f"🗑 Если нужно удалить ссылку — отправь мне её целиком."
-            await callback.message.edit_text(
-                answer
-            )
-            await state.set_state(DeleteSource.waiting_for_link_word)
-
-        else:
-            await callback.message.edit_text(
-                f"🙂‍↔️ У тебя ещё нет ни одной ссылки. Чтобы создать — жми /start"
-            )
-
-
-@router.message(AddSource.waiting_for_name)
-async def process_name(message: Message, state: FSMContext):
-    await state.update_data(name=message.text)
-    await state.set_state(AddSource.waiting_for_link_word)
-    await message.answer("А теперь введи именную фразу для ссылки (латиницей, вместо пробелов — подчёркивание (_).\n\nНапример: vlad_vopros")
-
-
-@router.message(AddSource.waiting_for_link_word)
-async def process_link_word(message: Message, state: FSMContext):
-    link_word = message.text.strip()
-
-    exists = await Source.filter(link_word=link_word).exists()
-    if exists:
-        await message.answer(
-            "Эта ссылка уже занята другим источником!\n\nПопробуй вести другую фразу."
-        )
-        return
-
-    user_data = await state.get_data()
-    user = await User.get(telegram_id=message.from_user.id)
-    source = await Source.create(
-        user=user,
-        name=user_data["name"],
-        link_word=message.text,
-        created_at=now_msk(),
-    )
-
-    await state.clear()
-
-    bot_info = await message.bot.get_me()
-    await message.answer(
-        f"✅ <b>Источник «{source.name}» успешно создан!</b>\n\n"
-        f"🔗 Твоя ссылка:\n<code>t.me/{bot_info.username}?start={source.link_word}</code>\n\n"
-        f"Делись этой ссылкой в одном блоге/чате, чтобы не путать источники."
-    )
 
 
 @router.message(SendAnonymousMessage.waiting_for_text)
